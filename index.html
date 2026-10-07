@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson Time Distribution</title>
+<style>
+  :root{
+    --bg:#fcfcfb; --fg:#1f2328; --muted:#5f6670; --faint:#8a919b; --line:#e7e7e4; --grid:#eeeeeb;
+    --outer:#86b6ef; --mid:#256abf; --rowhover:#f4f6f8;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#1a1a19; --fg:#ecebe8; --muted:#a9adb3; --faint:#7d838b; --line:#2e2e2c; --grid:#262624;
+      --outer:#184f95; --mid:#6da7ec; --rowhover:#212120;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px 16px 40px;background:var(--bg);color:var(--fg);
+       font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  h1{font-size:19px;margin:0 0 4px}
+  .sub{margin:0 0 20px;color:var(--muted);font-size:13px;max-width:760px}
+
+  /* How-to-read key */
+  .key{border:1px solid var(--line);border-radius:8px;padding:14px 18px 12px;margin-bottom:22px;max-width:760px}
+  .key h2{font-size:13px;margin:0 0 10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .kbar{position:relative;height:16px;display:flex;width:88%}
+  .kbar div{height:100%}
+  .kbar .o{background:var(--outer)} .kbar .m{background:var(--mid)}
+  .kbar .cap-l{border-radius:4px 0 0 4px} .kbar .cap-r{border-radius:0 4px 4px 0}
+  .kbar .gap{width:3px;background:var(--bg)}
+  .klabels{display:flex;width:88%;margin-top:6px;font-size:12px;color:var(--muted);text-align:center}
+  .klabels div{padding:0 2px}
+  .ktop{position:relative;width:88%;height:18px;font-size:12px}
+  .ktop span{position:absolute;transform:translateX(-50%);white-space:nowrap;font-weight:600}
+  .key h2 .eg{font-weight:500;text-transform:none;letter-spacing:0;color:var(--faint);margin-left:8px}
+  .kex{position:relative;width:78%;margin:4px 0 0}
+  .krow{position:relative;height:17px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .krow span{position:absolute;white-space:nowrap}
+  .krow .c{transform:translateX(-50%)} .krow .r{padding-left:6px}
+  .krow.cap{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--faint)}
+  .krow .b{font-weight:700;color:var(--fg)}
+  .krow.tick{margin-top:4px;font-size:11px}
+  .krow.seglab{color:var(--fg);font-size:12px}
+  .kbar2{position:relative;height:18px}
+  .kbar2 .seg{bottom:2px}
+  .kbar2 .medgap{bottom:0}
+  .p90v{position:absolute;top:0;line-height:18px;padding-left:6px;font-size:11px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .key details{margin-top:10px;font-size:13px}
+  .key summary{cursor:pointer;color:var(--muted);font-weight:600}
+  .key details p{margin:8px 0 4px}
+  .key details ul{margin:0;padding-left:18px}
+  .key ol{margin:12px 0 0;padding-left:18px;font-size:13px;color:var(--fg)}
+  .key li{margin:2px 0}
+
+  .wrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:880px}
+  th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+  th{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;vertical-align:bottom}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.num.dim{color:var(--muted)}
+  tr:hover td{background:var(--rowhover)}
+  td.lesson{max-width:250px;font-weight:500}
+  .idx{color:var(--faint);font-variant-numeric:tabular-nums;margin-right:6px}
+  th.chart,td.chart{width:54%;padding-left:12px;padding-right:16px}
+
+  .track{position:relative;height:40px}
+  .gl{position:absolute;top:0;bottom:0;width:1px;background:var(--grid)}
+  .seg{position:absolute;bottom:6px;height:14px}
+  .seg.o{background:var(--outer)} .seg.m{background:var(--mid)}
+  .seg.first{border-radius:4px 0 0 4px} .seg.last{border-radius:0 4px 4px 0}
+  .medgap{position:absolute;bottom:4px;height:18px;width:3px;margin-left:-1.5px;background:var(--bg)}
+  .medlab{position:absolute;top:2px;font-size:12px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;transform:translateX(-50%)}
+  .p90lab{position:absolute;bottom:6px;line-height:14px;font-size:11px;color:var(--muted);white-space:nowrap;padding-left:6px;font-variant-numeric:tabular-nums}
+
+  .axis{position:relative;height:16px}
+  .axis span{position:absolute;transform:translateX(-50%);font-size:11px;color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0;white-space:nowrap}
+
+  .tip{position:fixed;pointer-events:none;background:var(--fg);color:var(--bg);padding:8px 10px;border-radius:6px;
+       font-size:12px;line-height:1.55;display:none;z-index:10;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .controls{margin:0 0 10px;font-size:13px;color:var(--muted)}
+  .controls label{margin-right:16px;cursor:pointer}
+</style>
+</head>
+<body>
+<h1>Total time each learner spends on a lesson</h1>
+<p class="sub">Each bar is one lesson's learners, lined up from least to most total time (all visits combined). All rows share one time scale.</p>
+
+<div class="key">
+  <h2>How to read a bar <span class="eg">Example: Building the Memory</span></h2>
+  <div class="kex">
+    <div class="krow cap">
+      <span class="c" style="left:26.1%">Median</span>
+      <span class="r" style="left:100%">p90</span>
+    </div>
+    <div class="krow val">
+      <span class="c b" style="left:26.1%">6m 48s</span>
+    </div>
+    <div class="kbar2">
+      <div class="seg o first" style="left:0;width:9.5%"></div>
+      <div class="seg m" style="left:9.5%;width:36.1%"></div>
+      <div class="seg o last" style="left:45.6%;width:54.4%"></div>
+      <div class="medgap" style="left:26.1%"></div>
+      <span class="p90v" style="left:100%">26m 02s</span>
+    </div>
+    <div class="krow tick">
+      <span class="c" style="left:9.5%">p25 · 2m 28s</span>
+      <span class="c" style="left:45.6%">p75 · 11m 53s</span>
+    </div>
+    <div class="krow seglab">
+      <span class="l" style="left:0">bottom 25%</span>
+      <span class="c" style="left:27.8%">middle 50% (dark)</span>
+      <span class="c" style="left:72.8%">next 15%</span>
+      <span class="r" style="left:100%">top 10% →</span>
+    </div>
+  </div>
+  <ol>
+    <li><b>Bold number = median</b>: 50% of learners spent at least this long (6m 48s).</li>
+    <li><b>Dark middle = p25 to p75</b>: the middle half of learners fall here (2m 28s – 11m 53s).</li>
+    <li><b>Bar end = p90</b> (gray number): the top 10% of learners spent at least this long (26m 02s).</li>
+  </ol>
+  <details open>
+    <summary>How time is calculated</summary>
+    <p>For each learner, we add up all the time they spent on a lesson across every visit. Each visit's duration = time until they navigated away.</p>
+    <ul>
+      <li><b>Average</b>: add every learner's total time together, divide by the number of learners.</li>
+      <li><b>P25 / Median / P75 / P90</b>: sort all learners by total time spent, pick the value at that position.</li>
+      <li><b>Unique users</b>: count each learner once, regardless of how many times they visited.</li>
+    </ul>
+  </details>
+</div>
+
+<div class="controls">
+  <label><input type="radio" name="sort" value="course" checked> Course order</label>
+  <label><input type="radio" name="sort" value="median"> Sort by median</label>
+</div>
+
+<div class="wrap">
+<table>
+  <thead>
+    <tr>
+      <th>Lesson</th>
+      <th class="chart"><div class="axis" id="axis"></div></th>
+      <th class="num">Average</th>
+      <th class="num">Pageviews</th>
+      <th class="num">Unique users</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+// seconds: avg, median, p25, p75, p90, pageviews, unique users
+const data = [
+  ["Introduction",248,85,22,215,582,7329,3809],
+  ["Overview of On-Device AI Memory",446,269,178,376,851,2306,1616],
+  ["Inside the AI Assistant Device",503,328,193,466,930,1649,1157],
+  ["Building the Memory",632,408,148,713,1562,1443,945],
+  ["Building the Voice Assistant",412,299,93,448,915,942,664],
+  ["Learning Through Memory",460,339,147,444,1035,791,575],
+  ["Running on a Local Computer",349,267,112,321,668,745,543],
+  ["Conclusion",57,28,19,34,74,532,440],
+  ["Practice on AI Coding Lab",420,87,26,344,1422,766,458],
+  ["Quiz",192,15,6,104,502,405,274],
+  ["[Optional] A Hybrid of On-Device and Cloud Memory",144,39,12,104,385,405,280],
+  ["[Optional] Glossary",179,26,10,139,433,308,224]
+].map((r,i)=>({i:i+1,name:r[0],avg:r[1],med:r[2],p25:r[3],p75:r[4],p90:r[5],pv:r[6],uu:r[7]}));
+
+const MAX = 28*60, TICK = 240;
+const pct = s => (s/MAX*100) + "%";
+const fmt = s => { const m=Math.floor(s/60), r=s%60; return m ? `${m}m ${String(r).padStart(2,"0")}s` : `${r}s`; };
+const num = n => n.toLocaleString();
+
+const axis = document.getElementById("axis");
+let grid = "";
+for (let t=0; t<=MAX; t+=TICK){
+  axis.insertAdjacentHTML("beforeend", `<span style="left:${pct(t)}">${t/60} min</span>`);
+  grid += `<div class="gl" style="left:${pct(t)}"></div>`;
+}
+
+function seg(cls, a, b){ return `<div class="seg ${cls}" style="left:${pct(a)};width:${pct(b-a)}"></div>`; }
+
+function rowHTML(d){
+  return `
+    <td class="lesson"><span class="idx">${d.i}</span>${d.name}</td>
+    <td class="chart">
+      <div class="track">
+        ${grid}
+        ${seg("o first",0,d.p25)}
+        ${seg("m",d.p25,d.p75)}
+        ${seg("o last",d.p75,d.p90)}
+        <div class="medgap" style="left:${pct(d.med)}"></div>
+        <div class="medlab" style="left:max(${pct(d.med)}, 22px)">${fmt(d.med)}</div>
+        <div class="p90lab" style="left:${pct(d.p90)}">${fmt(d.p90)}</div>
+      </div>
+    </td>
+    <td class="num dim">${fmt(d.avg)}</td>
+    <td class="num dim">${num(d.pv)}</td>
+    <td class="num dim">${num(d.uu)}</td>`;
+}
+
+const tbody = document.getElementById("rows");
+function render(order){
+  const list = [...data];
+  if (order === "median") list.sort((a,b)=>b.med-a.med);
+  tbody.innerHTML = "";
+  list.forEach(d=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = rowHTML(d);
+    tr.dataset.tip = `<b>${d.name}</b><br>75% of learners spent at least ${fmt(d.p25)}<br>50% of learners spent at least ${fmt(d.med)}<br>25% of learners spent at least ${fmt(d.p75)}<br>10% of learners spent at least ${fmt(d.p90)}<br>Average: ${fmt(d.avg)}`;
+    tbody.appendChild(tr);
+  });
+}
+render("course");
+document.querySelectorAll('input[name=sort]').forEach(r=>r.addEventListener("change",e=>render(e.target.value)));
+
+const tip = document.getElementById("tip");
+tbody.addEventListener("mousemove", e => {
+  const tr = e.target.closest("tr"); if (!tr) return;
+  tip.innerHTML = tr.dataset.tip; tip.style.display = "block";
+  const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+  tip.style.left = x + "px"; tip.style.top = (e.clientY + 14) + "px";
+});
+tbody.addEventListener("mouseleave", () => tip.style.display = "none");
+</script>
+</body>
+</html>
